@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent 智能中枢</title>
+    <style>
+        /* 全局现代化重置 */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: #f3f4f6;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 主体聊天窗口 */
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 顶部导航栏 */
+        .header {
+            background: #2563eb;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        /* 聊天记录区 */
+        .chat-box {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f9fafb;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* 气泡通用样式 */
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            word-wrap: break-word;
+            white-space: pre-wrap; /* 保证 AI 返回的换行符能正常显示 */
+        }
+
+        /* 用户消息（靠右，蓝色） */
+        .message.user {
+            align-self: flex-end;
+            background-color: #2563eb;
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        /* AI消息（靠左，灰色） */
+        .message.ai {
+            align-self: flex-start;
+            background-color: #ffffff;
+            color: #1f2937;
+            border: 1px solid #e5e7eb;
+            border-bottom-left-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        /* 底部输入区 */
+        .input-area {
+            padding: 20px;
+            background: #ffffff;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-area input:focus {
+            border-color: #2563eb;
+        }
+
+        .input-area button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 0 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .input-area button:hover {
+            background-color: #1d4ed8;
+        }
+
+        .input-area button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        /* 正在输入动画提示 */
+        .typing-indicator {
+            color: #6b7280;
+            font-size: 0.85rem;
+            align-self: flex-start;
+            margin-left: 5px;
+            display: none; /* 默认隐藏 */
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="header">
+        NexusAgent 智能中枢
+    </div>
+
+    <div class="chat-box" id="chat-box">
+        <div class="message ai">你好！我是已接入持久化记忆与 SSE 流式输出能力的 AI Agent，请问有什么我可以帮你的？</div>
+    </div>
+
+    <div class="typing-indicator" id="typing-indicator">AI 正在思考...</div>
+
+    <div class="input-area">
+        <input type="text" id="user-input" placeholder="输入消息，按回车键发送..." onkeypress="handleKeyPress(event)">
+        <button id="send-btn" onclick="sendMessage()">发送</button>
+    </div>
+</div>
+
+<script>
+    const chatBox = document.getElementById('chat-box');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const typingIndicator = document.getElementById('typing-indicator');
+
+    // 监听回车键
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    }
+
+    // 核心：SSE 流式网络请求与打字机渲染
+    async function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        // 1. 禁用输入框和按钮，防止重复点击
+        userInput.value = '';
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+
+        // 2. 将用户消息渲染到界面
+        appendMessage(message, 'user');
+
+        // 3. 显示 AI 正在思考的提示
+        typingIndicator.style.display = 'block';
+
+        // 4. 组装发给后端的参数
+        const params = new URLSearchParams();
+        params.append('message', message);
+
+        // 5. 提前为 AI 创建一个空的气泡，用来动态塞文字
+        const aiMsgDiv = document.createElement('div');
+        aiMsgDiv.classList.add('message', 'ai');
+        chatBox.appendChild(aiMsgDiv);
+
+        try {
+            // 发起 POST 请求到后端的流式接口
+            const response = await fetch('http://localhost:8080/api/chat/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // 获取数据读取器
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+
+            // 接通了！隐藏思考动画
+            typingIndicator.style.display = 'none';
+
+            // 循环读取每一小段流数据
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break; // 读取结束，跳出循环
+
+                // 解码字节流
+                const chunk = decoder.decode(value, { stream: true });
+
+                // 解析 Spring SseEmitter 默认的 "data:文本\n\n" 格式
+                const lines = chunk.split('\n');
+                for (let line of lines) {
+                    if (line.startsWith('data:')) {
+                        // 截取 "data:" 后面的文字追加到气泡里
+                        let text = line.substring(5);
+                        aiMsgDiv.innerText += text;
+
+                        // 保持滚动条在最底部
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("流式请求错误:", err);
+            typingIndicator.style.display = 'none';
+            aiMsgDiv.innerText += "\n❌ 网络连接中断或后端报错，未能接收完整消息，请检查 IDEA 控制台。";
+        } finally {
+            // 无论成功失败，恢复输入框
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            userInput.focus();
+        }
+    }
+
+    // 抽取的一个渲染气泡的通用函数
+    function appendMessage(text, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', sender);
+        msgDiv.innerText = text;
+        chatBox.appendChild(msgDiv);
+
+        // 发送新消息后，自动滚动到最底部
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+</script>
+</body>
+</html>
