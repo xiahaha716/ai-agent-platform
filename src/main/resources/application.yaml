@@ -3,23 +3,19 @@ server:
 
 spring:
   datasource:
-
     url: jdbc:mysql://127.0.0.1:3306/ai_agent?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
 
-
-
-
 langchain4j:
   open-ai:
     chat-model:
-      api-key: sk-e6d4ec070a8a4c049cf9bf2e44fefc78
-      base-url: https://api.deepseek.com
+      api-key: x
+      base-url: https://api.deepseek.com/v1
       model-name: deepseek-chat
+
 
 ai:
   deepseek:
-    api-key: sk-e6d4ec070a8a4c049cf9bf2e44fefc78
+    api-key: x
     base-url: https://api.deepseek.com
-
