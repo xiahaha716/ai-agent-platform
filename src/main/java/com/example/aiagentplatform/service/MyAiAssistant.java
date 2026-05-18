@@ -4,7 +4,6 @@ import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.spring.AiService;
 import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.UserMessage; // 1. 必须导入这个包
-
 import dev.langchain4j.service.TokenStream; // ➕ 导入这个流式对象
 
 @AiService
